@@ -256,6 +256,53 @@ export const indicator = {
 };
 
 // ============================================================================
+// QUANT RESONANCE TRANSLATIONS (20+ keys)
+// ============================================================================
+export const quantResonance = {
+  title: { zh: '量化共振策略', en: 'Quant Resonance Strategy', es: 'Estrategia Quant Resonance' },
+  desc: { zh: '基於多週期共振的規則化量化交易策略', en: 'Rule-based quantitative strategy using multi-timeframe resonance', es: 'Estrategia cuantitativa basada en resonancia multi-marco' },
+  sopTitle: { zh: 'SOP 決策邏輯', en: 'SOP Decision Rules', es: 'Reglas SOP' },
+  sopStep1: { zh: '步驟1：HTF 趨勢確認', en: 'Step 1: HTF Trend Confirmation', es: 'Paso 1: Tendencia HTF' },
+  sopStep2: { zh: '步驟2：MTF 支撐壓力共振', en: 'Step 2: MTF S/R Resonance', es: 'Paso 2: S/R MTF' },
+  sopStep3: { zh: '步驟3：LTF 觸發確認', en: 'Step 3: LTF Trigger Confirmation', es: 'Paso 3: Trigger LTF' },
+  
+  // Timeframes
+  htfTimeframe: { zh: 'HTF 大週期', en: 'HTF Timeframe', es: 'HTF Marco' },
+  mtfTimeframe: { zh: 'MTF 中週期', en: 'MTF Timeframe', es: 'MTF Marco' },
+  ltfTimeframe: { zh: 'LTF 觸發週期', en: 'LTF Timeframe', es: 'LTF Marco' },
+  
+  // Indicators
+  macdLength: { zh: 'MACD 週期', en: 'MACD Length', es: 'MACD Período' },
+  bollPeriod: { zh: '布林週期', en: 'Boll Period', es: 'Boll Período' },
+  bollMultiplier: { zh: '布林倍數', en: 'Boll Multiplier', es: 'Boll Multiplicador' },
+  srTolerance: { zh: '支撐壓力容差 (%)', en: 'S/R Tolerance (%)', es: 'S/R Tolerancia (%)' },
+  rsiPeriod: { zh: 'RSI 週期', en: 'RSI Period', es: 'RSI Período' },
+  rsiOversold: { zh: 'RSI 做多 (超賣) 閾值', en: 'RSI Buy (Oversold)', es: 'RSI Compra' },
+  rsiOverbought: { zh: 'RSI 做空 (超買) 閾值', en: 'RSI Sell (Overbought)', es: 'RSI Venta' },
+  volSmaPeriod: { zh: '均量線週期 (SMA)', en: 'Volume SMA Period', es: 'SMA Volumen' },
+  volMultiplier: { zh: '能量噴發倍數', en: 'Volume Multiplier', es: 'Multiplicador Vol' },
+  
+  // Risk
+  riskTitle: { zh: '風險與止損', en: 'Risk & Stop-Loss', es: 'Riesgo y SL' },
+  slAtrMultiplier: { zh: 'ATR 止損倍數', en: 'SL ATR Multiplier', es: 'SL ATR Multiplicador' },
+  maxRiskPerTrade: { zh: '單筆最大風險 (%)', en: 'Max Risk per Trade (%)', es: 'Riesgo Máximo' },
+  maxOpenPositions: { zh: '最大持倉數量', en: 'Max Open Positions', es: 'Posiciones Máximas' },
+  
+  // Take Profit
+  tpTitle: { zh: '分批止盈設定', en: 'Take Profit Allocation', es: 'Asignación de TP' },
+  tpTier1: { zh: '第一止盈比例 (TP1)', en: 'TP Tier 1 Size', es: 'TP Tier 1' },
+  tpTier2: { zh: '第二止盈比例 (TP2)', en: 'TP Tier 2 Size', es: 'TP Tier 2' },
+  tpFib1: { zh: 'TP1 斐波那契點位', en: 'TP1 Fib Level', es: 'TP1 Fib' },
+  tpFib2: { zh: 'TP2 斐波那契點位', en: 'TP2 Fib Level', es: 'TP2 Fib' },
+  
+  // Visuals
+  longSignal: { zh: '做多信號', en: 'Long Signal', es: 'Señal Long' },
+  shortSignal: { zh: '做空信號', en: 'Short Signal', es: 'Señal Short' },
+  resonanceChain: { zh: '共振鏈', en: 'Resonance Chain', es: 'Cadena' },
+  paramConfig: { zh: '參數配置面板', en: 'Parameter Panels', es: 'Paneles de Parámetros' },
+};
+
+// ============================================================================
 // PUBLISH SETTINGS TRANSLATIONS (8 keys)
 // ============================================================================
 export const publishSettings = {
@@ -299,6 +346,7 @@ export const zhStrategy = {
   ...Object.fromEntries(Object.entries(riskControl).map(([k, v]) => [k, v.zh])),
   ...Object.fromEntries(Object.entries(promptSections).map(([k, v]) => [k, v.zh])),
   ...Object.fromEntries(Object.entries(indicator).map(([k, v]) => [k, v.zh])),
+  ...Object.fromEntries(Object.entries(quantResonance).map(([k, v]) => [k, v.zh])),
   ...Object.fromEntries(Object.entries(publishSettings).map(([k, v]) => [k, v.zh])),
   ...Object.fromEntries(Object.entries(chartTabs).map(([k, v]) => [k, v.zh])),
 };
@@ -310,6 +358,7 @@ export const enStrategy = {
   ...Object.fromEntries(Object.entries(riskControl).map(([k, v]) => [k, v.en])),
   ...Object.fromEntries(Object.entries(promptSections).map(([k, v]) => [k, v.en])),
   ...Object.fromEntries(Object.entries(indicator).map(([k, v]) => [k, v.en])),
+  ...Object.fromEntries(Object.entries(quantResonance).map(([k, v]) => [k, v.en])),
   ...Object.fromEntries(Object.entries(publishSettings).map(([k, v]) => [k, v.en])),
   ...Object.fromEntries(Object.entries(chartTabs).map(([k, v]) => [k, v.en])),
 };
@@ -321,6 +370,7 @@ export const esStrategy = {
   ...Object.fromEntries(Object.entries(riskControl).map(([k, v]) => [k, v.es])),
   ...Object.fromEntries(Object.entries(promptSections).map(([k, v]) => [k, v.es])),
   ...Object.fromEntries(Object.entries(indicator).map(([k, v]) => [k, v.es])),
+  ...Object.fromEntries(Object.entries(quantResonance).map(([k, v]) => [k, v.es])),
   ...Object.fromEntries(Object.entries(publishSettings).map(([k, v]) => [k, v.es])),
   ...Object.fromEntries(Object.entries(chartTabs).map(([k, v]) => [k, v.es])),
 };

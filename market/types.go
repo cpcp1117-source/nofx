@@ -29,6 +29,28 @@ type KlineBar struct {
 	Volume float64 `json:"volume"` // Volume
 }
 
+// ToKline converts KlineBar to internal market.Kline type
+func (kb KlineBar) ToKline() Kline {
+	return Kline{
+		OpenTime:  kb.Time,
+		Open:      kb.Open,
+		High:      kb.High,
+		Low:       kb.Low,
+		Close:     kb.Close,
+		Volume:    kb.Volume,
+		CloseTime: kb.Time + 60000, // Dummy close time
+	}
+}
+
+// ToKlines converts a slice of KlineBar to a slice of internal market.Kline
+func ToKlines(bars []KlineBar) []Kline {
+	klines := make([]Kline, len(bars))
+	for i, b := range bars {
+		klines[i] = b.ToKline()
+	}
+	return klines
+}
+
 // TimeframeSeriesData series data for a single timeframe
 type TimeframeSeriesData struct {
 	Timeframe   string     `json:"timeframe"`    // Timeframe identifier, e.g. "5m", "15m", "1h"

@@ -50,6 +50,7 @@ func (s *Server) handleTraderList(c *gin.Context) {
 			"initial_balance":     trader.InitialBalance,
 			"strategy_id":         trader.StrategyID,
 			"strategy_name":       strategyName,
+			"strategy_type":       trader.StrategyType,
 		})
 	}
 
@@ -102,6 +103,7 @@ func (s *Server) handleGetTraderConfig(c *gin.Context) {
 		"use_ai500":             traderConfig.UseAI500,
 		"use_oi_top":            traderConfig.UseOITop,
 		"is_running":            isRunning,
+		"strategy_type":         traderConfig.StrategyType,
 	}
 
 	c.JSON(http.StatusOK, result)

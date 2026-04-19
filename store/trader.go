@@ -42,6 +42,8 @@ type Trader struct {
 	CustomPrompt         string `gorm:"column:custom_prompt;default:''" json:"custom_prompt,omitempty"`
 	OverrideBasePrompt   bool   `gorm:"column:override_base_prompt;default:false" json:"override_base_prompt,omitempty"`
 	SystemPromptTemplate string `gorm:"column:system_prompt_template;default:default" json:"system_prompt_template,omitempty"`
+	StrategyType         string `gorm:"column:strategy_type;default:'ai'" json:"strategy_type"` // "ai" or "quant_resonance"
+	QuantParams          string `gorm:"column:quant_params;default:''" json:"quant_params"`      // JSON string of quant parameters
 }
 
 // TableName returns the table name for Trader
@@ -113,9 +115,10 @@ func (s *TraderStore) Update(trader *Trader) error {
 		"name":           trader.Name,
 		"ai_model_id":    trader.AIModelID,
 		"exchange_id":    trader.ExchangeID,
-		"strategy_id":    trader.StrategyID,
-		"is_cross_margin": trader.IsCrossMargin,
-		"show_in_competition": trader.ShowInCompetition,
+		"strategy_id":          trader.StrategyID,
+		"strategy_type":        trader.StrategyType,
+		"is_cross_margin":      trader.IsCrossMargin,
+		"show_in_competition":  trader.ShowInCompetition,
 	}
 
 	// Only update these if > 0

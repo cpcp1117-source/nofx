@@ -103,6 +103,43 @@ type StrategyConfig struct {
 
 	// Grid trading configuration (only used when StrategyType == "grid_trading")
 	GridConfig *GridStrategyConfig `json:"grid_config,omitempty"`
+
+	// Quant Resonance configuration (only used when StrategyType == "quant_resonance")
+	QuantResonanceConfig *QuantResonanceConfig `json:"quant_resonance_config,omitempty"`
+}
+
+// QuantResonanceConfig quantitative resonance strategy parameters
+type QuantResonanceConfig struct {
+	// --- Timeframe Settings ---
+	HTF_Timeframe string `json:"htf_timeframe"` // Step 1: Default "1d"
+	MTF_Timeframe string `json:"mtf_timeframe"` // Step 2: Default "4h"
+	LTF_Timeframe string `json:"ltf_timeframe"` // Step 3: Default "15m"
+
+	// --- Step 1: HTF Trend ---
+	HTF_MACD_Length int `json:"htf_macd_length"` // Default 26
+
+	// --- Step 2: MTF S/R ---
+	MTF_Boll_Period     int     `json:"mtf_boll_period"`     // Default 20
+	MTF_Boll_Multiplier float64 `json:"mtf_boll_multiplier"` // Default 2.0
+	MTF_SR_Tolerance    float64 `json:"mtf_sr_tolerance"`    // Default 0.005 (0.5%)
+
+	// --- Step 3: LTF Trigger ---
+	LTF_RSI_Period    int     `json:"ltf_rsi_period"`    // Default 14
+	LTF_RSI_Oversold  float64 `json:"ltf_rsi_oversold"`  // Default 30.0
+	LTF_RSI_Overbought float64 `json:"ltf_rsi_overbought"` // Default 70.0
+	Volume_SMA_Length int     `json:"volume_sma_length"` // Default 50
+	Volume_Multiplier float64 `json:"volume_multiplier"` // Default 1.0
+
+	// --- Risk Management ---
+	SL_ATR_Multiplier float64 `json:"sl_atr_multiplier"` // Default 1.0
+	Max_Risk_Per_Trade float64 `json:"max_risk_per_trade"` // Default 2.0 (%)
+	Max_Open_Positions int     `json:"max_open_positions"` // Default 5
+
+	// --- Take Profit Allocation ---
+	TP_Size_Tier1 float64 `json:"tp_size_tier1"` // 0.50 (50%)
+	TP_Size_Tier2 float64 `json:"tp_size_tier2"` // 0.30 (30%)
+	TP_Fib_Level1 float64 `json:"tp_fib_level1"` // Default 0.618
+	TP_Fib_Level2 float64 `json:"tp_fib_level2"` // Default 1.618
 }
 
 // GridStrategyConfig grid trading specific configuration

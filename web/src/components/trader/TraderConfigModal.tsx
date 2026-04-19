@@ -36,6 +36,8 @@ interface FormState {
   show_in_competition: boolean
   scan_interval_minutes: number
   initial_balance?: number
+  strategy_type: string
+  quant_params?: string
 }
 
 interface TraderConfigModalProps {
@@ -66,6 +68,13 @@ export function TraderConfigModal({
     is_cross_margin: true,
     show_in_competition: true,
     scan_interval_minutes: 3,
+    strategy_type: 'ai',
+    quant_params: JSON.stringify({
+      vol_sma_period: 50,
+      rsi_buy: 30,
+      rsi_sell: 70,
+      risk_per_trade: 2
+    })
   })
   const [isSaving, setIsSaving] = useState(false)
   const [strategies, setStrategies] = useState<Strategy[]>([])
@@ -104,6 +113,13 @@ export function TraderConfigModal({
       setFormData({
         ...traderData,
         strategy_id: traderData.strategy_id || '',
+        strategy_type: traderData.strategy_type || 'ai',
+        quant_params: traderData.quant_params || JSON.stringify({
+          vol_sma_period: 50,
+          rsi_buy: 30,
+          rsi_sell: 70,
+          risk_per_trade: 2
+        }),
       })
     } else if (!isEditMode) {
       setFormData({
@@ -114,6 +130,13 @@ export function TraderConfigModal({
         is_cross_margin: true,
         show_in_competition: true,
         scan_interval_minutes: 3,
+        strategy_type: 'ai',
+        quant_params: JSON.stringify({
+          vol_sma_period: 50,
+          rsi_buy: 30,
+          rsi_sell: 70,
+          risk_per_trade: 2
+        }),
       })
     }
   }, [traderData, isEditMode, availableModels, availableExchanges])
@@ -198,6 +221,8 @@ export function TraderConfigModal({
         is_cross_margin: formData.is_cross_margin,
         show_in_competition: formData.show_in_competition,
         scan_interval_minutes: formData.scan_interval_minutes,
+        strategy_type: formData.strategy_type,
+        quant_params: formData.quant_params,
       }
 
       // 只在编辑模式时包含initial_balance
@@ -259,6 +284,40 @@ export function TraderConfigModal({
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
               <span className="text-[#F0B90B]">1</span> {t('basicConfig', language)}
             </h3>
+
+            {/* Strategy Type / Trading Mode Selection */}
+            <div className="mb-6">
+              <label className="text-sm text-[#EAECEF] block mb-3">
+                {t('tradingMode', language)}
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleInputChange('strategy_type', 'ai')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all duration-200 ${
+                    formData.strategy_type === 'ai'
+                      ? 'bg-[#F0B90B] border-[#F0B90B] text-black shadow-lg shadow-[#F0B90B]/20'
+                      : 'bg-[#1E2329] border-[#2B3139] text-[#848E9C] hover:border-[#F0B90B]/50'
+                  }`}
+                >
+                  <Sparkles className={`w-4 h-4 ${formData.strategy_type === 'ai' ? 'text-black' : 'text-[#F0B90B]'}`} />
+                  <span className="font-medium text-sm">{t('aiMode', language)}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInputChange('strategy_type', 'quant_resonance')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all duration-200 ${
+                    formData.strategy_type === 'quant_resonance'
+                      ? 'bg-[#F0B90B] border-[#F0B90B] text-black shadow-lg shadow-[#F0B90B]/20'
+                      : 'bg-[#1E2329] border-[#2B3139] text-[#848E9C] hover:border-[#F0B90B]/50'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full border-2 ${formData.strategy_type === 'quant_resonance' ? 'border-black' : 'border-[#F0B90B]'}`} />
+                  <span className="font-medium text-sm">{t('quantResonanceMode', language)}</span>
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-[#EAECEF] block mb-2">
@@ -284,7 +343,10 @@ export function TraderConfigModal({
                     onChange={(val) =>
                       handleInputChange('ai_model', val)
                     }
-                    className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF]"
+                    disabled={formData.strategy_type === 'quant_resonance'}
+                    className={`w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF] ${
+                      formData.strategy_type === 'quant_resonance' ? 'opacity-40 cursor-not-allowed grayscale' : ''
+                    }`}
                     options={availableModels.map((model) => ({
                       value: model.id,
                       label: getShortName(model.name || model.id).toUpperCase(),
@@ -335,67 +397,218 @@ export function TraderConfigModal({
             </div>
           </div>
 
-          {/* Strategy Selection */}
+          {/* Quant Selection and Parameters */}
           <div className="bg-[#0B0E11] border border-[#2B3139] rounded-lg p-5">
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
-              <span className="text-[#F0B90B]">2</span> {t('selectTradingStrategy', language)}
-              <Sparkles className="w-4 h-4 text-[#F0B90B]" />
+              <span className="text-[#F0B90B]">2</span> {formData.strategy_type === 'quant_resonance' ? t('quantParams', language) : t('selectTradingStrategy', language)}
+              {formData.strategy_type === 'quant_resonance' ? <div className="w-4 h-4 rounded-full border-2 border-[#F0B90B]" /> : <Sparkles className="w-4 h-4 text-[#F0B90B]" />}
             </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-[#EAECEF] block mb-2">
-                  {t('useStrategy', language)}
-                </label>
-                <NofxSelect
-                  value={formData.strategy_id}
-                  onChange={(val) =>
-                    handleInputChange('strategy_id', val)
-                  }
-                  className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF]"
-                  options={[
-                    { value: '', label: t('noStrategyManual', language) },
-                    ...strategies.map((strategy) => ({
-                      value: strategy.id,
-                      label: strategy.name + (strategy.is_active ? t('strategyActive', language) : '') + (strategy.is_default ? t('strategyDefault', language) : ''),
-                    })),
-                  ]}
-                />
-                {strategies.length === 0 && (
+            
+            {formData.strategy_type === 'quant_resonance' ? (
+              <div className="space-y-4">
+                {/* Strategy Dropdown for Quant Resonance */}
+                <div>
+                  <label className="text-sm text-[#EAECEF] block mb-2">
+                    {t('useStrategy', language)}
+                  </label>
+                  <NofxSelect
+                    value={formData.strategy_id}
+                    onChange={(val) => {
+                      handleInputChange('strategy_id', val)
+                      // Load quant_params from the selected strategy
+                      const selected = strategies.find(s => s.id === val)
+                      if (selected?.config?.quant_resonance_config) {
+                        handleInputChange('quant_params', JSON.stringify(selected.config.quant_resonance_config))
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF]"
+                    options={[
+                      { value: '', label: t('noStrategyManual', language) },
+                      ...strategies
+                        .filter(s => s.config?.strategy_type === 'quant_resonance')
+                        .map((strategy) => ({
+                          value: strategy.id,
+                          label: strategy.name + (strategy.is_active ? t('strategyActive', language) : '') + (strategy.is_default ? t('strategyDefault', language) : ''),
+                        })),
+                    ]}
+                  />
+                  {strategies.filter(s => s.config?.strategy_type === 'quant_resonance').length === 0 && (
                     <p className="text-xs text-[#848E9C] mt-2">
                       {t('noStrategyHint', language)}
-                  </p>
-                )}
-              </div>
+                    </p>
+                  )}
+                </div>
 
-              {/* Strategy Preview */}
-              {selectedStrategy && (
-                <div className="mt-3 p-4 bg-[#1E2329] border border-[#2B3139] rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[#F0B90B] text-sm font-medium">
-                      {t('strategyDetails', language)}
-                    </span>
-                    {selectedStrategy.is_active && (
-                      <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
-                        {t('activating', language)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-[#848E9C] mb-2">
-                    {selectedStrategy.description || (language === 'zh' ? '无描述' : 'No description')}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-[#848E9C]">
-                    <div>
-                      {t('coinSource', language)}: {selectedStrategy.config.coin_source.source_type === 'static' ? '固定币种' :
-                        selectedStrategy.config.coin_source.source_type === 'ai500' ? 'AI500' :
-                        selectedStrategy.config.coin_source.source_type === 'oi_top' ? 'OI Top' : '混合'}
+                {/* SOP Steps Info */}
+                <div className="p-4 bg-[#1E2329]/50 border border-[#2B3139] rounded-lg space-y-3">
+                  <h4 className="text-sm font-medium text-[#F0B90B] flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#F0B90B]" />
+                    {t('sopRulesTitle', language)}
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2 text-xs text-[#848E9C]">
+                      <span className="text-[#F0B90B] font-bold">1.</span>
+                      <span>{t('sopStep1', language)}</span>
                     </div>
-                    <div>
-                      {t('marginLimit', language)}: {((selectedStrategy.config.risk_control?.max_margin_usage || 0.9) * 100).toFixed(0)}%
+                    <div className="flex items-start gap-2 text-xs text-[#848E9C]">
+                      <span className="text-[#F0B90B] font-bold">2.</span>
+                      <span>{t('sopStep2', language)}</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-xs text-[#848E9C]">
+                      <span className="text-[#F0B90B] font-bold">3.</span>
+                      <span>{t('sopStep3', language)}</span>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
+
+                {/* Strategy Preview - show selected strategy's params */}
+                {(() => {
+                  const selectedQRStrategy = strategies.find(s => s.id === formData.strategy_id && s.config?.strategy_type === 'quant_resonance')
+                  if (!selectedQRStrategy?.config?.quant_resonance_config) return null
+                  const qrParams = selectedQRStrategy.config.quant_resonance_config
+                  return (
+                    <div className="mt-3 p-4 bg-[#1E2329] border border-[#2B3139] rounded-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[#F0B90B] text-sm font-medium">
+                          {t('quantParams', language)}
+                        </span>
+                        {selectedQRStrategy.is_active && (
+                          <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                            {t('activating', language)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="p-2 rounded bg-[#0B0E11]/50">
+                          <span className="text-[#848E9C]">{t('volume_sma_length', language) || 'Vol SMA'}</span>
+                          <div className="text-[#EAECEF] font-mono mt-1">N={qrParams.volume_sma_length}</div>
+                        </div>
+                        <div className="p-2 rounded bg-[#0B0E11]/50">
+                          <span className="text-[#848E9C]">RSI</span>
+                          <div className="text-[#EAECEF] font-mono mt-1">
+                            Buy≤{qrParams.ltf_rsi_oversold} / Sell≥{qrParams.ltf_rsi_overbought}
+                          </div>
+                        </div>
+                        <div className="p-2 rounded bg-[#0B0E11]/50 col-span-2">
+                          <span className="text-[#848E9C]">{t('max_risk_per_trade', language) || 'Max Risk'}</span>
+                          <div className="text-red-400 font-mono mt-1">{qrParams.max_risk_per_trade}%</div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Manual fallback when no strategy selected */}
+                {!formData.strategy_id && (() => {
+                  const params = JSON.parse(formData.quant_params || '{}')
+                  const updateParams = (key: string, val: number) => {
+                    const newParams = { ...params, [key]: val }
+                    handleInputChange('quant_params', JSON.stringify(newParams))
+                  }
+
+                  return (
+                    <div className="space-y-5 pt-2 border-t border-[#2B3139]">
+                      <p className="text-xs text-[#848E9C] italic">
+                        {language === 'zh' ? '未選擇策略，手動配置參數：' : 'No strategy selected, configure parameters manually:'}
+                      </p>
+                      {/* Vol SMA Period */}
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-sm text-[#EAECEF]">{t('volumeSmaPeriod', language)}</label>
+                          <span className="text-xs font-mono text-[#F0B90B] bg-[#F0B90B]/10 px-2 py-0.5 rounded">N={params.vol_sma_period || 50}</span>
+                        </div>
+                        <input
+                          type="range" min="10" max="200" step="1"
+                          value={params.vol_sma_period || 50}
+                          onChange={(e) => updateParams('vol_sma_period', parseInt(e.target.value))}
+                          className="w-full h-1.5 bg-[#2B3139] rounded-lg appearance-none cursor-pointer accent-[#F0B90B]"
+                        />
+                      </div>
+                      {/* RSI Thresholds */}
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label className="text-xs text-[#848E9C] block mb-2">{t('rsiBuyThreshold', language)}</label>
+                          <input type="number" value={params.rsi_buy || 30} onChange={(e) => updateParams('rsi_buy', parseInt(e.target.value))}
+                            className="w-full px-3 py-1.5 bg-[#1E2329] border border-[#2B3139] rounded text-sm text-[#EAECEF] focus:border-[#F0B90B] outline-none" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-[#848E9C] block mb-2">{t('rsiSellThreshold', language)}</label>
+                          <input type="number" value={params.rsi_sell || 70} onChange={(e) => updateParams('rsi_sell', parseInt(e.target.value))}
+                            className="w-full px-3 py-1.5 bg-[#1E2329] border border-[#2B3139] rounded text-sm text-[#EAECEF] focus:border-[#F0B90B] outline-none" />
+                        </div>
+                      </div>
+                      {/* Risk Per Trade */}
+                      <div className="pt-2 border-t border-[#2B3139]">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-[#848E9C]">{t('maxRiskPerTrade', language)}</span>
+                          <span className="text-xs font-bold text-red-400">{params.risk_per_trade || 2}%</span>
+                        </div>
+                        <input type="range" min="0.5" max="5" step="0.5"
+                          value={params.risk_per_trade || 2}
+                          onChange={(e) => updateParams('risk_per_trade', parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-[#2B3139] rounded-lg appearance-none cursor-pointer accent-red-500" />
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-[#EAECEF] block mb-2">
+                    {t('useStrategy', language)}
+                  </label>
+                  <NofxSelect
+                    value={formData.strategy_id}
+                    onChange={(val) =>
+                      handleInputChange('strategy_id', val)
+                    }
+                    className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF]"
+                    options={[
+                      { value: '', label: t('noStrategyManual', language) },
+                      ...strategies.map((strategy) => ({
+                        value: strategy.id,
+                        label: strategy.name + (strategy.is_active ? t('strategyActive', language) : '') + (strategy.is_default ? t('strategyDefault', language) : ''),
+                      })),
+                    ]}
+                  />
+                  {strategies.length === 0 && (
+                      <p className="text-xs text-[#848E9C] mt-2">
+                        {t('noStrategyHint', language)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Strategy Preview */}
+                {selectedStrategy && (
+                  <div className="mt-3 p-4 bg-[#1E2329] border border-[#2B3139] rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[#F0B90B] text-sm font-medium">
+                        {t('strategyDetails', language)}
+                      </span>
+                      {selectedStrategy.is_active && (
+                        <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                          {t('activating', language)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-[#848E9C] mb-2">
+                      {selectedStrategy.description || (language === 'zh' ? '无描述' : 'No description')}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-[#848E9C]">
+                      <div>
+                        {t('coinSource', language)}: {selectedStrategy.config.coin_source.source_type === 'static' ? '固定币种' :
+                          selectedStrategy.config.coin_source.source_type === 'ai500' ? 'AI500' :
+                          selectedStrategy.config.coin_source.source_type === 'oi_top' ? 'OI Top' : '混合'}
+                      </div>
+                      <div>
+                        {t('marginLimit', language)}: {((selectedStrategy.config.risk_control?.max_margin_usage || 0.9) * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Trading Parameters */}

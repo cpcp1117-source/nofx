@@ -29,7 +29,8 @@ type AutoTraderConfig struct {
 	// Trader identification
 	ID      string // Trader unique identifier (for log directory, etc.)
 	Name    string // Trader display name
-	AIModel string // AI model: "qwen" or "deepseek"
+	AIModel      string // AI model: "qwen" or "deepseek"
+	StrategyType string // "ai" (default) or "quant_resonance"
 
 	// Trading platform selection
 	Exchange   string // Exchange type: "binance", "bybit", "okx", "bitget", "gate", "hyperliquid", "aster" or "lighter"
@@ -113,6 +114,7 @@ type AutoTraderConfig struct {
 
 	// Strategy configuration (use complete strategy config)
 	StrategyConfig *store.StrategyConfig // Strategy configuration (includes coin sources, indicators, risk control, prompts, etc.)
+	QuantParams    string                // JSON string of quantitative parameters
 }
 
 // AutoTrader automatic trader
@@ -122,6 +124,7 @@ type AutoTrader struct {
 	aiModel               string // AI model name
 	exchange              string // Trading platform type (binance/bybit/etc)
 	exchangeID            string // Exchange account UUID
+	strategyType          string // "ai" or "quant_resonance"
 	showInCompetition     bool   // Whether to show in competition page
 	config                AutoTraderConfig
 	trader                Trader // Use Trader interface (supports multiple platforms)
@@ -169,6 +172,9 @@ func NewAutoTrader(config AutoTraderConfig, st *store.Store, userID string) (*Au
 		} else {
 			config.AIModel = "deepseek"
 		}
+	}
+	if config.StrategyType == "" {
+		config.StrategyType = "ai"
 	}
 
 	// Initialize AI client based on provider
@@ -348,6 +354,7 @@ func NewAutoTrader(config AutoTraderConfig, st *store.Store, userID string) (*Au
 		aiModel:               config.AIModel,
 		exchange:              config.Exchange,
 		exchangeID:            config.ExchangeID,
+		strategyType:          config.StrategyType,
 		showInCompetition:     config.ShowInCompetition,
 		config:                config,
 		trader:                trader,
@@ -482,6 +489,10 @@ func (at *AutoTrader) Run() error {
 		if err := at.RunGridCycle(); err != nil {
 			logger.Infof("❌ Grid execution failed: %v", err)
 		}
+	} else if at.strategyType == "quant_resonance" {
+		if err := at.runQuantCycle(); err != nil {
+			logger.Infof("❌ Quant execution failed: %v", err)
+		}
 	} else {
 		if err := at.runCycle(); err != nil {
 			logger.Infof("❌ Execution failed: %v", err)
@@ -502,6 +513,10 @@ func (at *AutoTrader) Run() error {
 			if isGridStrategy {
 				if err := at.RunGridCycle(); err != nil {
 					logger.Infof("❌ Grid execution failed: %v", err)
+				}
+			} else if at.strategyType == "quant_resonance" {
+				if err := at.runQuantCycle(); err != nil {
+					logger.Infof("❌ Quant execution failed: %v", err)
 				}
 			} else {
 				if err := at.runCycle(); err != nil {

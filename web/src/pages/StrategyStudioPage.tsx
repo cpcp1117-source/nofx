@@ -30,7 +30,7 @@ import {
   Upload,
   Globe,
 } from 'lucide-react'
-import type { Strategy, StrategyConfig, AIModel, GridStrategyConfig } from '../types'
+import type { Strategy, StrategyConfig, AIModel, GridStrategyConfig, QuantResonanceParams } from '../types'
 import { confirmToast, notify } from '../lib/notify'
 import { CoinSourceEditor } from '../components/strategy/CoinSourceEditor'
 import { IndicatorEditor } from '../components/strategy/IndicatorEditor'
@@ -38,6 +38,7 @@ import { RiskControlEditor } from '../components/strategy/RiskControlEditor'
 import { PromptSectionsEditor } from '../components/strategy/PromptSectionsEditor'
 import { PublishSettingsEditor } from '../components/strategy/PublishSettingsEditor'
 import { GridConfigEditor, defaultGridConfig } from '../components/strategy/GridConfigEditor'
+import { QuantResonanceEditor } from '../components/strategy/QuantResonanceEditor'
 import { TokenEstimateBar } from '../components/strategy/TokenEstimateBar'
 import { DeepVoidBackground } from '../components/common/DeepVoidBackground'
 import { t } from '../i18n/translations'
@@ -64,6 +65,7 @@ export function StrategyStudioPage() {
   // Accordion states for left panel
   const [expandedSections, setExpandedSections] = useState({
     gridConfig: true,
+    quantResonance: true,
     coinSource: true,
     indicators: false,
     riskControl: false,
@@ -466,6 +468,28 @@ export function StrategyStudioPage() {
     setHasChanges(true)
   }
 
+  const defaultQuantResonanceConfig: QuantResonanceParams = {
+    htf_timeframe: '1d',
+    mtf_timeframe: '4h',
+    ltf_timeframe: '15m',
+    htf_macd_length: 26,
+    mtf_boll_period: 20,
+    mtf_boll_multiplier: 2.0,
+    mtf_sr_tolerance: 0.005,
+    ltf_rsi_period: 14,
+    ltf_rsi_oversold: 30,
+    ltf_rsi_overbought: 70,
+    volume_sma_length: 50,
+    volume_multiplier: 1.0,
+    sl_atr_multiplier: 1.0,
+    max_risk_per_trade: 2.0,
+    max_open_positions: 5,
+    tp_size_tier1: 0.5,
+    tp_size_tier2: 0.3,
+    tp_fib_level1: 0.618,
+    tp_fib_level2: 1.618,
+  }
+
   const handleStrategyTypeChange = (strategyType: NonNullable<StrategyConfig['strategy_type']>) => {
     if (selectedStrategy?.is_default) return
 
@@ -484,8 +508,21 @@ export function StrategyStudioPage() {
         return {
           ...prev,
           strategy_type: 'ai_trading',
-          // Use null so the field is preserved in JSON and backend merge can actually clear it.
           grid_config: null,
+          quant_resonance_config: null,
+        }
+      }
+
+      if (strategyType === 'quant_resonance') {
+        if (selectedStrategy?.id && prev.grid_config) {
+          gridConfigCacheRef.current[selectedStrategy.id] = { ...prev.grid_config }
+        }
+
+        return {
+          ...prev,
+          strategy_type: 'quant_resonance',
+          grid_config: null,
+          quant_resonance_config: prev.quant_resonance_config ?? { ...defaultQuantResonanceConfig },
         }
       }
 
@@ -493,6 +530,7 @@ export function StrategyStudioPage() {
         ...prev,
         strategy_type: 'grid_trading',
         grid_config: cachedGridConfig ?? prev.grid_config ?? { ...defaultGridConfig },
+        quant_resonance_config: null,
       }
     })
 
@@ -589,6 +627,22 @@ export function StrategyStudioPage() {
         <GridConfigEditor
           config={editingConfig.grid_config}
           onChange={(gridConfig) => updateConfig('grid_config', gridConfig)}
+          disabled={selectedStrategy?.is_default}
+          language={language}
+        />
+      ),
+    },
+    // Quant Resonance Config - only for quant_resonance
+    {
+      key: 'quantResonance' as const,
+      icon: Zap,
+      color: '#F0B90B',
+      title: tr('quantResonanceConfig'),
+      forStrategyType: 'quant_resonance' as const,
+      content: editingConfig && (
+        <QuantResonanceEditor
+          config={editingConfig.quant_resonance_config ?? defaultQuantResonanceConfig}
+          onChange={(qrConfig) => updateConfig('quant_resonance_config', qrConfig)}
           disabled={selectedStrategy?.is_default}
           language={language}
         />
@@ -897,7 +951,7 @@ export function StrategyStudioPage() {
                     <Zap className="w-4 h-4" style={{ color: '#F0B90B' }} />
                     <span className="text-sm font-medium text-nofx-text">{tr('strategyType')}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <button
                       onClick={() => handleStrategyTypeChange('ai_trading')}
                       disabled={selectedStrategy?.is_default}
@@ -927,6 +981,21 @@ export function StrategyStudioPage() {
                         <span className="text-sm font-medium text-nofx-text">{tr('gridTrading')}</span>
                       </div>
                       <p className="text-xs text-nofx-text-muted text-left">{tr('gridTradingDesc')}</p>
+                    </button>
+                    <button
+                      onClick={() => handleStrategyTypeChange('quant_resonance')}
+                      disabled={selectedStrategy?.is_default}
+                      className={`p-3 rounded-lg border transition-all ${
+                        editingConfig.strategy_type === 'quant_resonance'
+                          ? 'border-nofx-gold bg-nofx-gold/10'
+                          : 'border-nofx-border hover:border-nofx-gold/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Zap className="w-4 h-4" style={{ color: '#a855f7' }} />
+                        <span className="text-sm font-medium text-nofx-text">{tr('quantResonance')}</span>
+                      </div>
+                      <p className="text-xs text-nofx-text-muted text-left">{tr('quantResonanceDesc')}</p>
                     </button>
                   </div>
                 </div>

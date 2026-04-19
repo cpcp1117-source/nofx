@@ -38,9 +38,43 @@ export interface PromptSectionsConfig {
   decision_process?: string;
 }
 
+// Quant Resonance strategy parameters
+export interface QuantResonanceParams {
+  // --- Timeframe Settings ---
+  htf_timeframe?: string;
+  mtf_timeframe?: string;
+  ltf_timeframe?: string;
+
+  // --- Step 1: HTF Trend ---
+  htf_macd_length?: number;
+
+  // --- Step 2: MTF S/R ---
+  mtf_boll_period?: number;
+  mtf_boll_multiplier?: number;
+  mtf_sr_tolerance?: number;
+
+  // --- Step 3: LTF Trigger ---
+  ltf_rsi_period?: number;
+  ltf_rsi_oversold?: number;
+  ltf_rsi_overbought?: number;
+  volume_sma_length?: number;
+  volume_multiplier?: number;
+
+  // --- Risk Management ---
+  sl_atr_multiplier?: number;
+  max_risk_per_trade?: number;
+  max_open_positions?: number;
+
+  // --- Take Profit Allocation ---
+  tp_size_tier1?: number;
+  tp_size_tier2?: number;
+  tp_fib_level1?: number;
+  tp_fib_level2?: number;
+}
+
 export interface StrategyConfig {
-  // Strategy type: "ai_trading" (default) or "grid_trading"
-  strategy_type?: 'ai_trading' | 'grid_trading';
+  // Strategy type: "ai_trading", "grid_trading", or "quant_resonance"
+  strategy_type?: 'ai_trading' | 'grid_trading' | 'quant_resonance';
   // Language setting: "zh" for Chinese, "en" for English
   // Determines the language used for data formatting and prompt generation
   language?: 'zh' | 'en';
@@ -51,6 +85,8 @@ export interface StrategyConfig {
   prompt_sections?: PromptSectionsConfig;
   // Grid trading configuration (only used when strategy_type is 'grid_trading')
   grid_config?: GridStrategyConfig | null;
+  // Quant Resonance configuration (only used when strategy_type is 'quant_resonance')
+  quant_resonance_config?: QuantResonanceParams | null;
 }
 
 // Grid trading specific configuration

@@ -83,8 +83,8 @@ func (at *AutoTrader) GetStatus() map[string]interface{} {
 	}
 
 	// Add strategy info
+	result["strategy_type"] = at.strategyType
 	if at.config.StrategyConfig != nil {
-		result["strategy_type"] = at.config.StrategyConfig.StrategyType
 		if at.config.StrategyConfig.GridConfig != nil {
 			result["grid_symbol"] = at.config.StrategyConfig.GridConfig.Symbol
 		}

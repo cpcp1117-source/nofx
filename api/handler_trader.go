@@ -24,6 +24,7 @@ type CreateTraderRequest struct {
 	ScanIntervalMinutes int     `json:"scan_interval_minutes"`
 	IsCrossMargin       *bool   `json:"is_cross_margin"`     // Pointer type, nil means use default value true
 	ShowInCompetition   *bool   `json:"show_in_competition"` // Pointer type, nil means use default value true
+	StrategyType        string  `json:"strategy_type"`        // "ai" or "quant_resonance"
 	// The following fields are kept for backward compatibility, new version uses strategy config
 	BTCETHLeverage       int    `json:"btc_eth_leverage"`
 	AltcoinLeverage      int    `json:"altcoin_leverage"`
@@ -45,6 +46,7 @@ type UpdateTraderRequest struct {
 	ScanIntervalMinutes int     `json:"scan_interval_minutes"`
 	IsCrossMargin       *bool   `json:"is_cross_margin"`
 	ShowInCompetition   *bool   `json:"show_in_competition"`
+	StrategyType        string  `json:"strategy_type"`
 	// The following fields are kept for backward compatibility, new version uses strategy config
 	BTCETHLeverage       int    `json:"btc_eth_leverage"`
 	AltcoinLeverage      int    `json:"altcoin_leverage"`
@@ -487,6 +489,7 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 		CustomPrompt:         req.CustomPrompt,
 		OverrideBasePrompt:   req.OverrideBasePrompt,
 		SystemPromptTemplate: systemPromptTemplate,
+		StrategyType:         req.StrategyType,
 		IsCrossMargin:        isCrossMargin,
 		ShowInCompetition:    showInCompetition,
 		ScanIntervalMinutes:  scanIntervalMinutes,
@@ -643,6 +646,7 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		CustomPrompt:         req.CustomPrompt,
 		OverrideBasePrompt:   req.OverrideBasePrompt,
 		SystemPromptTemplate: systemPromptTemplate,
+		StrategyType:         req.StrategyType,
 		IsCrossMargin:        isCrossMargin,
 		ShowInCompetition:    showInCompetition,
 		ScanIntervalMinutes:  scanIntervalMinutes,

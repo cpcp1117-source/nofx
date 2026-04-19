@@ -11,7 +11,7 @@ export interface SystemStatus {
   stop_until: string
   last_reset_time: string
   ai_provider: string
-  strategy_type?: 'ai_trading' | 'grid_trading'
+  strategy_type?: string
   grid_symbol?: string
 }
 
@@ -105,6 +105,7 @@ export interface TraderInfo {
   use_ai500?: boolean
   use_oi_top?: boolean
   system_prompt_template?: string
+  strategy_type?: string
 }
 
 // Competition related types
@@ -139,6 +140,8 @@ export interface TraderConfigData {
   scan_interval_minutes: number
   initial_balance: number
   is_running: boolean
+  strategy_type?: string
+  quant_params?: string
   // 以下为旧版字段（向后兼容）
   btc_eth_leverage?: number
   altcoin_leverage?: number

@@ -101,6 +101,8 @@ export interface CreateTraderRequest {
   system_prompt_template?: string
   use_ai500?: boolean
   use_oi_top?: boolean
+  strategy_type?: string
+  quant_params?: string // JSON string of parameters
 }
 
 export interface UpdateModelConfigRequest {
