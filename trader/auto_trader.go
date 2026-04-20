@@ -493,10 +493,12 @@ func (at *AutoTrader) Run() error {
 		if err := at.runQuantCycle(); err != nil {
 			logger.Infof("❌ Quant execution failed: %v", err)
 		}
-	} else {
+	} else if at.strategyType == "ai_trading" || at.strategyType == "ai" || at.strategyType == "" {
 		if err := at.runCycle(); err != nil {
 			logger.Infof("❌ Execution failed: %v", err)
 		}
+	} else {
+		logger.Errorf("❌ Unknown strategy type requested: %s", at.strategyType)
 	}
 
 	for {
@@ -518,10 +520,12 @@ func (at *AutoTrader) Run() error {
 				if err := at.runQuantCycle(); err != nil {
 					logger.Infof("❌ Quant execution failed: %v", err)
 				}
-			} else {
+			} else if at.strategyType == "ai_trading" || at.strategyType == "ai" || at.strategyType == "" {
 				if err := at.runCycle(); err != nil {
 					logger.Infof("❌ Execution failed: %v", err)
 				}
+			} else {
+				logger.Errorf("❌ Unknown strategy type requested: %s", at.strategyType)
 			}
 		case <-at.stopMonitorCh:
 			logger.Infof("[%s] ⏹ Stop signal received, exiting automatic trading main loop", at.name)

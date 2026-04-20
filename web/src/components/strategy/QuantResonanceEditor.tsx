@@ -1,12 +1,14 @@
 import { Activity, TrendingUp, Shield, Zap, Clock, Target } from 'lucide-react'
-import type { QuantResonanceParams } from '../../types'
-import { quantResonance, ts } from '../../i18n/strategy-translations'
+import type { QuantResonanceParams, RiskControlConfig } from '../../types'
+import { quantResonance, riskControl, ts } from '../../i18n/strategy-translations'
 import { NofxSelect } from '../ui/select'
 import { useState } from 'react'
 
 interface QuantResonanceEditorProps {
   config: QuantResonanceParams
   onChange: (config: QuantResonanceParams) => void
+  riskControlConfig?: RiskControlConfig
+  onRiskControlChange?: (config: RiskControlConfig) => void
   disabled?: boolean
   language: string
 }
@@ -24,6 +26,8 @@ const allTimeframes = [
 export function QuantResonanceEditor({
   config,
   onChange,
+  riskControlConfig,
+  onRiskControlChange,
   disabled,
   language,
 }: QuantResonanceEditorProps) {
@@ -34,6 +38,11 @@ export function QuantResonanceEditor({
   const update = <K extends keyof QuantResonanceParams>(key: K, value: QuantResonanceParams[K]) => {
     if (disabled) return
     onChange({ ...config, [key]: value })
+  }
+
+  const updateRisk = <K extends keyof RiskControlConfig>(key: K, value: RiskControlConfig[K]) => {
+    if (disabled || !riskControlConfig || !onRiskControlChange) return
+    onRiskControlChange({ ...riskControlConfig, [key]: value })
   }
 
   const toggleGroup = (group: string) => {
@@ -99,7 +108,7 @@ export function QuantResonanceEditor({
                   <div className="flex mb-1 items-center justify-between">
                      <span className="text-sm font-bold text-[#F0B90B]">2. {ts(quantResonance.sopStep2, language)}</span>
                   </div>
-                  <div className="text-xs text-[#848E9C] font-mono mb-4">Price near Box/Boll boundaries @ {config.mtf_timeframe ?? '4h'} (Tol: {((config.mtf_sr_tolerance ?? 0.005) * 100).toFixed(1)}%)</div>
+                  <div className="text-xs text-[#848E9C] font-mono mb-4">Price near Pivot S/R Clusters @ {config.mtf_timeframe ?? '4h'} (Tol: {((config.mtf_sr_tolerance ?? 0.005) * 100).toFixed(1)}%)</div>
                   
                   <div className="grid grid-cols-2 gap-4 pt-3 border-t border-[#F0B90B15]">
                     <TimeframeSelect label={ts(quantResonance.mtfTimeframe, language)} value={config.mtf_timeframe ?? '4h'} onChange={v => update('mtf_timeframe', v)} disabled={disabled} />
@@ -110,6 +119,22 @@ export function QuantResonanceEditor({
                       onChange={v => update('mtf_sr_tolerance', v / 100)} 
                       disabled={disabled}
                       suffix="%"
+                      color="#F0B90B"
+                    />
+                    <ParameterSlider 
+                      label={ts(quantResonance.pivotWing, language)} 
+                      value={config.pivot_wing ?? 10} 
+                      min={2} max={30} step={1}
+                      onChange={v => update('pivot_wing', v)} 
+                      disabled={disabled}
+                      color="#F0B90B"
+                    />
+                    <ParameterSlider 
+                      label={ts(quantResonance.smcDepth, language)} 
+                      value={config.smc_depth ?? 50} 
+                      min={20} max={200} step={10}
+                      onChange={v => update('smc_depth', v)} 
+                      disabled={disabled}
                       color="#F0B90B"
                     />
                   </div>
@@ -127,7 +152,7 @@ export function QuantResonanceEditor({
                   <div className="flex mb-1 items-center justify-between">
                      <span className="text-sm font-bold text-[#0ECB81]">3. {ts(quantResonance.sopStep3, language)}</span>
                   </div>
-                  <div className="text-xs text-[#848E9C] font-mono mb-4">RSI({config.ltf_rsi_period ?? 14}) Turn + Vol &gt; SMA({config.volume_sma_length ?? 50}) * {config.volume_multiplier ?? 1.0} @ {config.ltf_timeframe ?? '15m'}</div>
+                  <div className="text-xs text-[#848E9C] font-mono mb-4">SMC Institutional OB / FVG + Volume Confirm @ {config.ltf_timeframe ?? '15m'}</div>
                   
                   <div className="space-y-4 pt-3 border-t border-[#0ECB8115]">
                     <div className="grid grid-cols-2 gap-4">
@@ -140,6 +165,8 @@ export function QuantResonanceEditor({
                     <div className="grid grid-cols-2 gap-4">
                       <ParameterSlider label={ts(quantResonance.volSmaPeriod, language)} value={config.volume_sma_length ?? 50} min={10} max={200} onChange={v => update('volume_sma_length', v)} disabled={disabled} color="#0ECB81" />
                       <ParameterSlider label={ts(quantResonance.volMultiplier, language)} value={config.volume_multiplier ?? 1.0} min={1.0} max={3.0} step={0.1} onChange={v => update('volume_multiplier', v)} disabled={disabled} suffix="x" color="#0ECB81" />
+                      <ParameterSlider label={ts(quantResonance.sopThreshold, language)} value={config.sop_threshold ?? 80.0} min={50} max={100} step={5} onChange={v => update('sop_threshold', v)} disabled={disabled} suffix="%" color="#0ECB81" />
+                      <ParameterSlider label={ts(quantResonance.conflictResistance, language)} value={config.conflict_resistance ?? 0.7} min={0.1} max={1.0} step={0.1} onChange={v => update('conflict_resistance', v)} disabled={disabled} suffix="x" color="#F6465D" />
                     </div>
                   </div>
                 </div>
@@ -153,13 +180,13 @@ export function QuantResonanceEditor({
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[11px] font-bold text-[#0ECB81]">↑ {ts(quantResonance.longSignal, language)}</span>
                 </div>
-                <div className="text-[10px] text-[#848E9C] font-mono">RSI ≤ {config.ltf_rsi_oversold ?? 30} + Bull Reversal</div>
+                <div className="text-[10px] text-[#848E9C] font-mono">SOP Score ≥ {config.sop_threshold ?? 80.0}%</div>
              </div>
              <div className="p-3 rounded-lg border" style={{ background: 'rgba(246, 70, 93, 0.05)', borderColor: 'rgba(246, 70, 93, 0.2)' }}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[11px] font-bold text-[#F6465D]">↓ {ts(quantResonance.shortSignal, language)}</span>
                 </div>
-                <div className="text-[10px] text-[#848E9C] font-mono">RSI ≥ {config.ltf_rsi_overbought ?? 70} + Bear Reversal</div>
+                <div className="text-[10px] text-[#848E9C] font-mono">SOP Score ≥ {config.sop_threshold ?? 80.0}%</div>
              </div>
           </div>
         </div>
@@ -175,6 +202,15 @@ export function QuantResonanceEditor({
         onToggle={() => toggleGroup('risk')}
       >
         <div className="space-y-4">
+           {/* Global Risk Control */}
+           {riskControlConfig && (
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 border-b border-[#2B3139]">
+               <ParameterSlider label={ts(riskControl.maxPositions, language)} value={riskControlConfig.max_positions ?? 3} min={1} max={5} onChange={v => updateRisk('max_positions', v)} disabled={disabled} color="#0ECB81" />
+               <ParameterSlider label={ts(riskControl.btcEthLeverage, language)} value={riskControlConfig.btc_eth_max_leverage ?? 5} min={1} max={20} onChange={v => updateRisk('btc_eth_max_leverage', v)} disabled={disabled} suffix="x" color="#F0B90B" />
+               <ParameterSlider label={ts(riskControl.maxMarginUsage, language)} value={(riskControlConfig.max_margin_usage ?? 0.9) * 100} min={10} max={100} onChange={v => updateRisk('max_margin_usage', v / 100)} disabled={disabled} suffix="%" color="#0ECB81" />
+             </div>
+           )}
+
            <div className="grid grid-cols-2 gap-4">
               <ParameterSlider label={ts(quantResonance.slAtrMultiplier, language)} value={config.sl_atr_multiplier ?? 1.0} min={0.5} max={3.0} step={0.1} onChange={v => update('sl_atr_multiplier', v)} disabled={disabled} suffix=" ATR" color="#F6465D" />
               <ParameterSlider label={ts(quantResonance.maxRiskPerTrade, language)} value={config.max_risk_per_trade ?? 2.0} min={0.5} max={5.0} step={0.1} onChange={v => update('max_risk_per_trade', v)} disabled={disabled} suffix="%" color="#F6465D" />

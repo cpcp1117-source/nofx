@@ -527,7 +527,8 @@ func (at *AutoTrader) buildTradingContext() (*kernel.Context, error) {
 	}
 
 	// 8. Get quantitative data (if enabled in strategy config)
-	if strategyConfig.Indicators.EnableQuantData {
+	// Skip for quant_resonance as it uses its own multi-timeframe logic
+	if strategyConfig.Indicators.EnableQuantData && strategyConfig.StrategyType != "quant_resonance" {
 		// Collect symbols to query (candidate coins + position coins)
 		symbolsToQuery := make(map[string]bool)
 		for _, coin := range candidateCoins {
@@ -548,7 +549,8 @@ func (at *AutoTrader) buildTradingContext() (*kernel.Context, error) {
 	}
 
 	// 9. Get OI ranking data (market-wide position changes)
-	if strategyConfig.Indicators.EnableOIRanking {
+	// Skip for quant_resonance
+	if strategyConfig.Indicators.EnableOIRanking && strategyConfig.StrategyType != "quant_resonance" {
 		logger.Infof("📊 [%s] Fetching OI ranking data...", at.name)
 		ctx.OIRankingData = at.strategyEngine.FetchOIRankingData()
 		if ctx.OIRankingData != nil {
@@ -558,7 +560,8 @@ func (at *AutoTrader) buildTradingContext() (*kernel.Context, error) {
 	}
 
 	// 10. Get NetFlow ranking data (market-wide fund flow)
-	if strategyConfig.Indicators.EnableNetFlowRanking {
+	// Skip for quant_resonance
+	if strategyConfig.Indicators.EnableNetFlowRanking && strategyConfig.StrategyType != "quant_resonance" {
 		logger.Infof("💰 [%s] Fetching NetFlow ranking data...", at.name)
 		ctx.NetFlowRankingData = at.strategyEngine.FetchNetFlowRankingData()
 		if ctx.NetFlowRankingData != nil {
@@ -568,7 +571,8 @@ func (at *AutoTrader) buildTradingContext() (*kernel.Context, error) {
 	}
 
 	// 11. Get Price ranking data (market-wide gainers/losers)
-	if strategyConfig.Indicators.EnablePriceRanking {
+	// Skip for quant_resonance
+	if strategyConfig.Indicators.EnablePriceRanking && strategyConfig.StrategyType != "quant_resonance" {
 		logger.Infof("📈 [%s] Fetching Price ranking data...", at.name)
 		ctx.PriceRankingData = at.strategyEngine.FetchPriceRankingData()
 		if ctx.PriceRankingData != nil {

@@ -115,6 +115,12 @@ type QuantResonanceConfig struct {
 	MTF_Timeframe string `json:"mtf_timeframe"` // Step 2: Default "4h"
 	LTF_Timeframe string `json:"ltf_timeframe"` // Step 3: Default "15m"
 
+	// --- V4 SMC & Pivot Settings ---
+	PivotWing          int     `json:"pivot_wing"`          // Pivot clustering wing length (default 10)
+	SMCDepth           int     `json:"smc_depth"`           // Structural depth (default 50)
+	ConflictResistance float64 `json:"conflict_resistance"` // Filter strictness (default 0.7)
+	SOPThreshold       float64 `json:"sop_threshold"`       // Required score (default 80.0)
+
 	// --- Step 1: HTF Trend ---
 	HTF_MACD_Length int `json:"htf_macd_length"` // Default 26
 

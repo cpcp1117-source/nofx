@@ -282,6 +282,12 @@ export const quantResonance = {
   volSmaPeriod: { zh: '均量線週期 (SMA)', en: 'Volume SMA Period', es: 'SMA Volumen' },
   volMultiplier: { zh: '能量噴發倍數', en: 'Volume Multiplier', es: 'Multiplicador Vol' },
   
+  // V4 Parameters
+  pivotWing: { zh: '極值檢測寬度 (Pivot Wing)', en: 'Pivot Wing', es: 'Pivot Wing' },
+  smcDepth: { zh: 'SMC 結構深度', en: 'SMC Depth', es: 'SMC Depth' },
+  conflictResistance: { zh: '衝突抵抗係數', en: 'Conflict Resistance', es: 'Resistencia a Conflictos' },
+  sopThreshold: { zh: 'SOP 進場門檻', en: 'SOP Threshold', es: 'Umbral SOP' },
+  
   // Risk
   riskTitle: { zh: '風險與止損', en: 'Risk & Stop-Loss', es: 'Riesgo y SL' },
   slAtrMultiplier: { zh: 'ATR 止損倍數', en: 'SL ATR Multiplier', es: 'SL ATR Multiplicador' },

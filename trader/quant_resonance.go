@@ -130,6 +130,10 @@ func (at *AutoTrader) analyzeResonanceSignal(symbol string, ctx *kernel.Context)
 		HTF_Timeframe:      "1d",
 		MTF_Timeframe:      "4h",
 		LTF_Timeframe:      "15m",
+		PivotWing:          10,
+		SMCDepth:           50,
+		ConflictResistance: 0.7,
+		SOPThreshold:       80.0,
 		HTF_MACD_Length:    26,
 		MTF_Boll_Period:    20,
 		MTF_Boll_Multiplier: 2.0,
@@ -146,6 +150,19 @@ func (at *AutoTrader) analyzeResonanceSignal(symbol string, ctx *kernel.Context)
 
 	if at.config.StrategyConfig != nil && at.config.StrategyConfig.QuantResonanceConfig != nil {
 		params = *at.config.StrategyConfig.QuantResonanceConfig
+		// Fill defaults for new V4 Params if missing
+		if params.PivotWing <= 0 {
+			params.PivotWing = 10
+		}
+		if params.SMCDepth <= 0 {
+			params.SMCDepth = 50
+		}
+		if params.ConflictResistance <= 0 {
+			params.ConflictResistance = 0.7
+		}
+		if params.SOPThreshold <= 0 {
+			params.SOPThreshold = 80.0
+		}
 	} else if at.config.QuantParams != "" {
 		// Fallback to JSON string if struct is not populated
 		if err := json.Unmarshal([]byte(at.config.QuantParams), &params); err != nil {
@@ -155,7 +172,7 @@ func (at *AutoTrader) analyzeResonanceSignal(symbol string, ctx *kernel.Context)
 
 	// 2. Fetch required multi-timeframe data
 	timeframes := []string{params.HTF_Timeframe, params.MTF_Timeframe, params.LTF_Timeframe}
-	marketData, err := market.GetWithTimeframes(symbol, timeframes, params.LTF_Timeframe, 150)
+	marketData, err := market.GetWithTimeframes(symbol, timeframes, params.LTF_Timeframe, 200)
 	if err != nil {
 		return nil, err
 	}
@@ -171,9 +188,6 @@ func (at *AutoTrader) analyzeResonanceSignal(symbol string, ctx *kernel.Context)
 	klinesHTF := market.ToKlines(tfHTF.Klines)
 	klinesMTF := market.ToKlines(tfMTF.Klines)
 	klinesLTF := market.ToKlines(tfLTF.Klines)
-
-	// Fetch BoxData for S/R
-	boxData, _ := market.GetBoxData(symbol)
 
 	// 3. Status Checks
 	var currentPos *kernel.PositionInfo
@@ -191,48 +205,80 @@ func (at *AutoTrader) analyzeResonanceSignal(symbol string, ctx *kernel.Context)
 	}
 
 	// ==========================================
-	// Step 1: HTF Trend Confirmation
+	// Step 1: V4 Method B - Dynamic S/R Clustering (MTF)
 	// ==========================================
-	macdHTF := market.ExportCalculateMACD(klinesHTF) // Uses default params, can be further parameterized if needed
-	midSlopeMTF := market.CalculateBollSlope(klinesMTF, params.MTF_Boll_Period, params.MTF_Boll_Multiplier)
+	srConfig := market.SRConfig{
+		PivotWing:  params.PivotWing,
+		MergePct:   params.MTF_SR_Tolerance * 100, // convert percentage
+		WallBuffer: 0,
+	}
+	clusters := market.AnalyzeSupRes(klinesMTF, srConfig)
+	nearestLevels := market.FindNearestLevels(clusters, marketData.CurrentPrice)
 
-	isHtfBullish := macdHTF > 0 && midSlopeMTF > 0
-	isHtfBearish := macdHTF < 0 && midSlopeMTF < 0
+	// Check if near support
+	atSupport := false
+	var nearestSupport market.LevelWithDistance
+	if len(nearestLevels.Supports) > 0 {
+		nearestSupport = nearestLevels.Supports[0]
+		if nearestSupport.DistPct <= params.MTF_SR_Tolerance*100 {
+			atSupport = true
+		}
+	}
+
+	// Check if near resistance
+	atResistance := false
+	var nearestResistance market.LevelWithDistance
+	if len(nearestLevels.Resistances) > 0 {
+		nearestResistance = nearestLevels.Resistances[0]
+		if nearestResistance.DistPct <= params.MTF_SR_Tolerance*100 {
+			atResistance = true
+		}
+	}
 
 	// ==========================================
-	// Step 2: MTF Support/Resistance Resonance
+	// Step 2: V4 Method C - SMC Engine (LTF)
 	// ==========================================
-	_, midMTF, lowMTF := market.ExportCalculateBOLL(klinesMTF, params.MTF_Boll_Period, params.MTF_Boll_Multiplier)
-	upMTF, _, _ := market.ExportCalculateBOLL(klinesMTF, params.MTF_Boll_Period, params.MTF_Boll_Multiplier)
+	smcResult := market.AnalyzeSMC(klinesLTF, params.PivotWing)
+	
+	hasBullishOB := false
+	hasBearishOB := false
+	hasBullishFVG := false
+	hasBearishFVG := false
+	
+	// Scan for recent active Order Blocks
+	for _, ob := range smcResult.OrderBlocks {
+		if !ob.Mitigated {
+			if ob.Type == "bullish" {
+				// Check if current price is testing CE or entering OB zone
+				if marketData.CurrentPrice >= ob.Bottom && marketData.CurrentPrice <= ob.Top*1.02 {
+					hasBullishOB = true
+				}
+			} else {
+				if marketData.CurrentPrice <= ob.Top && marketData.CurrentPrice >= ob.Bottom*0.98 {
+					hasBearishOB = true
+				}
+			}
+		}
+	}
 
-	atSupport := market.IsNearSupport(marketData.CurrentPrice, boxData, midMTF, lowMTF, params.MTF_SR_Tolerance)
-	atResistance := market.IsNearResistance(marketData.CurrentPrice, boxData, midMTF, upMTF, params.MTF_SR_Tolerance)
+	for _, fvg := range smcResult.FVGs {
+		if !fvg.Mitigated {
+			if fvg.Type == "bullish" && marketData.CurrentPrice <= fvg.Top {
+				hasBullishFVG = true
+			} else if fvg.Type == "bearish" && marketData.CurrentPrice >= fvg.Bottom {
+				hasBearishFVG = true
+			}
+		}
+	}
 
 	// ==========================================
-	// Step 3: LTF Trigger Confirmation
+	// Step 3: Trigger & Volume (LTF)
 	// ==========================================
 	rsiTurnLong, rsiLTF := market.CheckRSITurnaround(klinesLTF, params.LTF_RSI_Period, params.LTF_RSI_Oversold, "bullish")
 	rsiTurnShort, _ := market.CheckRSITurnaround(klinesLTF, params.LTF_RSI_Period, params.LTF_RSI_Overbought, "bearish")
 
 	rsiConditionLong := rsiTurnLong || rsiLTF <= params.LTF_RSI_Oversold
 	rsiConditionShort := rsiTurnShort || rsiLTF >= params.LTF_RSI_Overbought
-
-	// MACD Momentum (Histogram shrink or cross)
-	macdHistShrinkLong := market.IsMACDHistogramShrinking(klinesLTF, "bullish")
-	macdHistShrinkShort := market.IsMACDHistogramShrinking(klinesLTF, "bearish")
-	macdCrossLong := market.IsMACDGoldenCross(klinesLTF)
-	macdCrossShort := market.IsMACDDeathCross(klinesLTF)
-
-	// Reversal Patterns
-	reversalPatterns := market.IdentifyReversalK(klinesLTF)
-	hasBullReversal, hasBearReversal := false, false
-	for _, p := range reversalPatterns {
-		if p.Direction == "bullish" {
-			hasBullReversal = true
-		} else if p.Direction == "bearish" {
-			hasBearReversal = true
-		}
-	}
 
 	// Volume Spike
 	volSMA := market.CalculateVolumeSMA(klinesLTF, params.Volume_SMA_Length)
@@ -248,19 +294,36 @@ func (at *AutoTrader) analyzeResonanceSignal(symbol string, ctx *kernel.Context)
 
 	var decisions []kernel.Decision
 
+	// Dynamic SOP Scoring (V4)
+	longScore := 0.0
+	shortScore := 0.0
+
+	// Long SOP evaluation
+	if atSupport { longScore += 30.0 }
+	if hasBullishOB { longScore += 30.0 }
+	if hasBullishFVG { longScore += 20.0 }
+	if rsiConditionLong { longScore += 10.0 }
+	if isVolumeSpike { longScore += 10.0 }
+	if hasBearishOB { longScore -= (30.0 * params.ConflictResistance) }
+
+	// Short SOP evaluation
+	if atResistance { shortScore += 30.0 }
+	if hasBearishOB { shortScore += 30.0 }
+	if hasBearishFVG { shortScore += 20.0 }
+	if rsiConditionShort { shortScore += 10.0 }
+	if isVolumeSpike { shortScore += 10.0 }
+	if hasBullishOB { shortScore -= (30.0 * params.ConflictResistance) }
+
 	// ==========================================
 	// EXECUTION LOGIC: LONG
 	// ==========================================
-	if !hasLong && isHtfBullish && atSupport && rsiConditionLong && (macdHistShrinkLong || macdCrossLong) && (hasBullReversal || rsiTurnLong) && isVolumeSpike {
-		// ATR-based Stop Loss
-		sl := math.Min(lastKline.Low, lowMTF) - (atr * params.SL_ATR_Multiplier)
+	if !hasLong && longScore >= params.SOPThreshold {
+		sl := math.Min(lastKline.Low, nearestSupport.Price) - (atr * params.SL_ATR_Multiplier)
 		riskPct := (marketData.CurrentPrice - sl) / marketData.CurrentPrice
 		
 		if riskPct > 0 {
 			riskPerTrade := params.Max_Risk_Per_Trade / 100.0
 			positionSizeUSD := (ctx.Account.TotalEquity * riskPerTrade) / riskPct
-			
-			// Safety cap (don't exceed total equity * 2 leverage for one trade)
 			if positionSizeUSD > ctx.Account.TotalEquity * 2.0 {
 				positionSizeUSD = ctx.Account.TotalEquity * 2.0
 			}
@@ -271,8 +334,8 @@ func (at *AutoTrader) analyzeResonanceSignal(symbol string, ctx *kernel.Context)
 				Leverage:        leverage,
 				PositionSizeUSD: positionSizeUSD,
 				StopLoss:        sl,
-				Confidence:      95,
-				Reasoning:       fmt.Sprintf("SOP Long: HTF Trend OK + MTF S/R OK + RSI(%.1f) Reversal + Vol Spike", rsiLTF),
+				Confidence:      int(longScore),
+				Reasoning:       fmt.Sprintf("SOP Long(%.1f%%): Pivot Support + SMC Bulls (OB:%v FVG:%v) + RSI(%.1f)", longScore, hasBullishOB, hasBullishFVG, rsiLTF),
 			})
 		}
 	}
@@ -280,14 +343,13 @@ func (at *AutoTrader) analyzeResonanceSignal(symbol string, ctx *kernel.Context)
 	// ==========================================
 	// EXECUTION LOGIC: SHORT
 	// ==========================================
-	if !hasShort && isHtfBearish && atResistance && rsiConditionShort && (macdHistShrinkShort || macdCrossShort) && (hasBearReversal || rsiTurnShort) && isVolumeSpike {
-		sl := math.Max(lastKline.High, upMTF) + (atr * params.SL_ATR_Multiplier)
+	if !hasShort && shortScore >= params.SOPThreshold {
+		sl := math.Max(lastKline.High, nearestResistance.Price) + (atr * params.SL_ATR_Multiplier)
 		riskPct := (sl - marketData.CurrentPrice) / marketData.CurrentPrice
 
 		if riskPct > 0 {
 			riskPerTrade := params.Max_Risk_Per_Trade / 100.0
 			positionSizeUSD := (ctx.Account.TotalEquity * riskPerTrade) / riskPct
-			
 			if positionSizeUSD > ctx.Account.TotalEquity * 2.0 {
 				positionSizeUSD = ctx.Account.TotalEquity * 2.0
 			}
@@ -298,28 +360,28 @@ func (at *AutoTrader) analyzeResonanceSignal(symbol string, ctx *kernel.Context)
 				Leverage:        leverage,
 				PositionSizeUSD: positionSizeUSD,
 				StopLoss:        sl,
-				Confidence:      95,
-				Reasoning:       fmt.Sprintf("SOP Short: HTF Trend OK + MTF S/R OK + RSI(%.1f) Reversal + Vol Spike", rsiLTF),
+				Confidence:      int(shortScore),
+				Reasoning:       fmt.Sprintf("SOP Short(%.1f%%): Pivot Resist + SMC Bears (OB:%v FVG:%v) + RSI(%.1f)", shortScore, hasBearishOB, hasBearishFVG, rsiLTF),
 			})
 		}
 	}
 
 	// ==========================================
-	// TAKE PROFIT & EXIT LOGIC
+	// TAKE PROFIT & EXIT LOGIC (V4 Simple Reversal)
 	// ==========================================
 	if currentPos != nil {
-		// Simplified exit based on trend reversal
-		if currentPos.Side == "long" && (macdHTF < 0 || midSlopeMTF < -0.05) {
+		macdHTF := market.ExportCalculateMACD(klinesHTF)
+		if currentPos.Side == "long" && (macdHTF < 0 || shortScore >= 60.0) {
 			decisions = append(decisions, kernel.Decision{
 				Symbol:    symbol,
 				Action:    "close_long",
-				Reasoning: "HTF Trend Reversal detected",
+				Reasoning: "Reversal Setup Detected or MacdHTF Bearish",
 			})
-		} else if currentPos.Side == "short" && (macdHTF > 0 || midSlopeMTF > 0.05) {
+		} else if currentPos.Side == "short" && (macdHTF > 0 || longScore >= 60.0) {
 			decisions = append(decisions, kernel.Decision{
 				Symbol:    symbol,
 				Action:    "close_short",
-				Reasoning: "HTF Trend Reversal detected",
+				Reasoning: "Reversal Setup Detected or MacdHTF Bullish",
 			})
 		}
 	}

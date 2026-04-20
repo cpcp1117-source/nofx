@@ -45,6 +45,12 @@ export interface QuantResonanceParams {
   mtf_timeframe?: string;
   ltf_timeframe?: string;
 
+  // --- V4 SMC & Pivot Settings ---
+  pivot_wing?: number;
+  smc_depth?: number;
+  conflict_resistance?: number;
+  sop_threshold?: number;
+
   // --- Step 1: HTF Trend ---
   htf_macd_length?: number;
 

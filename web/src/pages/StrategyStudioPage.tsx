@@ -42,6 +42,7 @@ import { QuantResonanceEditor } from '../components/strategy/QuantResonanceEdito
 import { TokenEstimateBar } from '../components/strategy/TokenEstimateBar'
 import { DeepVoidBackground } from '../components/common/DeepVoidBackground'
 import { t } from '../i18n/translations'
+import { useQuantEngineStore } from '../stores/quantEngineStore'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -57,6 +58,10 @@ export function StrategyStudioPage() {
   const [estimatedTokens, setEstimatedTokens] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
+
+  // Quant Engine Integration
+  const isQuantEnabled = useQuantEngineStore(s => s.isEnabled)
+  const toggleQuantEngine = useQuantEngineStore(s => s.toggleEnabled)
 
   // AI Models for test run
   const [aiModels, setAiModels] = useState<AIModel[]>([])
@@ -241,12 +246,18 @@ export function StrategyStudioPage() {
           is_default: false,
           is_public: false,
           config_visible: true,
-          config: defaultConfig,
+          config: {
+            ...defaultConfig,
+            strategy_type: 'quant_resonance'
+          },
           created_at: now,
           updated_at: now,
         }
         setSelectedStrategy(newStrategy)
-        setEditingConfig(defaultConfig)
+        setEditingConfig({
+          ...defaultConfig,
+          strategy_type: 'quant_resonance'
+        })
         setHasChanges(false)
       }
     } catch (err) {
@@ -523,6 +534,14 @@ export function StrategyStudioPage() {
           strategy_type: 'quant_resonance',
           grid_config: null,
           quant_resonance_config: prev.quant_resonance_config ?? { ...defaultQuantResonanceConfig },
+          // Disable NofxOS AI indicators for Quant Resonance to avoid data fetch errors
+          indicators: {
+            ...prev.indicators,
+            enable_quant_data: false,
+            enable_oi_ranking: false,
+            enable_netflow_ranking: false,
+            enable_price_ranking: false,
+          }
         }
       }
 
@@ -616,6 +635,40 @@ export function StrategyStudioPage() {
   const currentStrategyType = editingConfig?.strategy_type || 'ai_trading'
 
   const configSections = [
+    // Common: Coin Source (Universe) - Vital for both AI and Quant
+    {
+      key: 'coinSource' as const,
+      icon: Target,
+      color: '#F0B90B',
+      title: tr('coinSource'),
+      forStrategyType: ['ai_trading', 'quant_resonance'],
+      content: editingConfig && (
+        <CoinSourceEditor
+          config={editingConfig.coin_source}
+          onChange={(coinSource) => updateConfig('coin_source', coinSource)}
+          disabled={selectedStrategy?.is_default}
+          language={language}
+        />
+      ),
+    },
+    // Quant Resonance Config - only for quant_resonance
+    {
+      key: 'quantResonance' as const,
+      icon: Zap,
+      color: '#a855f7',
+      title: tr('quantResonanceConfig'),
+      forStrategyType: 'quant_resonance' as const,
+      content: editingConfig && (
+        <QuantResonanceEditor
+          config={editingConfig.quant_resonance_config ?? defaultQuantResonanceConfig}
+          onChange={(qrConfig) => updateConfig('quant_resonance_config', qrConfig)}
+          riskControlConfig={editingConfig.risk_control}
+          onRiskControlChange={(rcConfig) => updateConfig('risk_control', rcConfig)}
+          disabled={selectedStrategy?.is_default}
+          language={language}
+        />
+      ),
+    },
     // Grid Config - only for grid_trading
     {
       key: 'gridConfig' as const,
@@ -627,38 +680,6 @@ export function StrategyStudioPage() {
         <GridConfigEditor
           config={editingConfig.grid_config}
           onChange={(gridConfig) => updateConfig('grid_config', gridConfig)}
-          disabled={selectedStrategy?.is_default}
-          language={language}
-        />
-      ),
-    },
-    // Quant Resonance Config - only for quant_resonance
-    {
-      key: 'quantResonance' as const,
-      icon: Zap,
-      color: '#F0B90B',
-      title: tr('quantResonanceConfig'),
-      forStrategyType: 'quant_resonance' as const,
-      content: editingConfig && (
-        <QuantResonanceEditor
-          config={editingConfig.quant_resonance_config ?? defaultQuantResonanceConfig}
-          onChange={(qrConfig) => updateConfig('quant_resonance_config', qrConfig)}
-          disabled={selectedStrategy?.is_default}
-          language={language}
-        />
-      ),
-    },
-    // AI Trading sections
-    {
-      key: 'coinSource' as const,
-      icon: Target,
-      color: '#F0B90B',
-      title: tr('coinSource'),
-      forStrategyType: 'ai_trading' as const,
-      content: editingConfig && (
-        <CoinSourceEditor
-          config={editingConfig.coin_source}
-          onChange={(coinSource) => updateConfig('coin_source', coinSource)}
           disabled={selectedStrategy?.is_default}
           language={language}
         />
@@ -755,26 +776,43 @@ export function StrategyStudioPage() {
       ),
     },
   ].filter(section =>
-    section.forStrategyType === 'both' || section.forStrategyType === currentStrategyType
+    section.forStrategyType === 'both' || 
+    section.forStrategyType === currentStrategyType || 
+    (Array.isArray(section.forStrategyType) && section.forStrategyType.includes(currentStrategyType))
   )
 
   return (
     <DeepVoidBackground className="h-[calc(100vh-64px)] flex flex-col bg-nofx-bg relative overflow-hidden">
 
       {/* Header */}
-      {/* Header */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-nofx-gold/20 bg-nofx-bg/60 backdrop-blur-md z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-nofx-gold to-yellow-500">
-              <Sparkles className="w-5 h-5 text-black" />
+      <div className="flex-shrink-0 px-4 py-3 border-b border-nofx-gold/20 bg-nofx-bg/60 backdrop-blur-md z-10 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-nofx-gold to-yellow-500 shadow-lg shadow-nofx-gold/20">
+                <Sparkles className="w-5 h-5 text-black" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-nofx-text">{tr('title')}</h1>
+                <p className="text-xs text-nofx-text-muted">{tr('subtitle')}</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-nofx-text">{tr('title')}</h1>
-              <p className="text-xs text-nofx-text-muted">{tr('subtitle')}</p>
+
+            {/* Quant Engine Power Toggle */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 bg-black/20">
+              <span className={`text-xs font-mono font-bold tracking-wider ${isQuantEnabled ? 'text-nofx-gold' : 'text-nofx-text-muted'}`}>
+                QUANT V4.0 {isQuantEnabled ? 'LIVE' : 'OFF'}
+              </span>
+              <button 
+                onClick={toggleQuantEngine}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-nofx-gold focus:ring-offset-2 focus:ring-offset-black ${isQuantEnabled ? 'bg-nofx-gold' : 'bg-white/10'}`}
+              >
+                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isQuantEnabled ? 'translate-x-4 shadow-[0_0_10px_white]' : 'translate-x-0'}`} />
+              </button>
             </div>
           </div>
-          {error && (
+
+          <div className="flex items-center gap-4">
+            {error && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs bg-nofx-danger/10 text-nofx-danger">
               {error}
               <button onClick={() => setError(null)} className="hover:underline">×</button>

@@ -213,6 +213,8 @@ func classifyTraderSetupReason(reason string) (string, string) {
 		return "trader.reason.exchange_unsupported", "当前交易所类型暂不支持机器人初始化"
 	case strings.Contains(lower, "initial balance not set and unable to fetch balance from exchange"):
 		return "trader.reason.exchange_balance_unavailable", "系统暂时无法从交易所读取账户余额"
+	case strings.Contains(lower, "initial balance must be greater than 0"):
+		return "trader.reason.initial_balance_missing", "当前交易账户的初始余额不能为 0，请前往交易所入金并在配置中重新保存"
 	case strings.Contains(lower, "timeout"), strings.Contains(lower, "no such host"), strings.Contains(lower, "connection refused"):
 		return "trader.reason.exchange_service_unreachable", "系统暂时无法连接交易所服务"
 	default:

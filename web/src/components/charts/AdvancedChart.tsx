@@ -20,6 +20,9 @@ import {
   type Kline,
 } from '../../utils/indicators'
 import { Settings, BarChart2 } from 'lucide-react'
+import { QuantResonancePanel } from '../strategy/QuantResonancePanel'
+import { useQuantAnalysis } from '../../hooks/useQuantAnalysis'
+import { useQuantEngineStore } from '../../stores/quantEngineStore'
 
 // Order marker interface
 interface OrderMarker {
@@ -124,6 +127,12 @@ export function AdvancedChart({
   const isInitialLoadRef = useRef(true) // Track if this is initial load
   const [tooltipData, setTooltipData] = useState<any>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
+
+  // Quant Engine State Integration
+  const [klineDataState, setKlineDataState] = useState<Kline[]>([])
+  const quantState = useQuantAnalysis(symbol, klineDataState)
+  const isQuantEnabled = useQuantEngineStore(s => s.isEnabled)
+  const quantLinesRef = useRef<any[]>([]) // Store quant chart drawings
 
   // Market stats (current candle)
   const [marketStats, setMarketStats] = useState<{
@@ -534,6 +543,7 @@ export function AdvancedChart({
         const klineData = await fetchKlineData(symbol, interval)
         console.log('[AdvancedChart] Loaded', klineData.length, 'klines')
         candlestickSeriesRef.current.setData(klineData)
+        setKlineDataState(klineData) // Hook for QuantEngine
 
         // Store volume/quoteVolume data for tooltip
         klineDataRef.current.clear()
@@ -842,6 +852,59 @@ export function AdvancedChart({
     }
   }, [showOrderMarkers])
 
+  // QuantEngine Overlay Drawer - 高階繪圖 (SMC OB Zones & S/R Levels)
+  useEffect(() => {
+    if (!candlestickSeriesRef.current) return
+
+    // Clear existing quant lines
+    quantLinesRef.current.forEach(line => {
+      try { candlestickSeriesRef.current?.removePriceLine(line) } catch (e) {}
+    })
+    quantLinesRef.current = []
+
+    if (!isQuantEnabled || !quantState?.nearestLevels) return
+
+    const drawLine = (price: number, color: string, title: string, lineStyle: any = 2, lineWidth: any = 2) => {
+       const l = candlestickSeriesRef.current!.createPriceLine({
+         price, color, lineWidth, lineStyle, axisLabelVisible: true, title
+       })
+       quantLinesRef.current.push(l)
+    }
+
+    try {
+      // 1. 繪製 S/R 牆壁
+      const res = quantState.nearestLevels.resistances[0]
+      if (res) drawLine(res.price, 'rgba(246, 70, 93, 0.4)', 'SMC Res', 2, 2)
+
+      const sup = quantState.nearestLevels.supports[0]
+      if (sup) drawLine(sup.price, 'rgba(14, 203, 129, 0.4)', 'SMC Sup', 2, 2)
+
+      // 2. 繪製最新的 Order Blocks (機構防守區間)
+      const allOBs = quantState.smc?.orderBlocks || []
+      
+      // 找尋距離現價最近的未填補 Bearish OB (壓制區)
+      const bearishOBs = allOBs.filter(ob => ob.type === 'bearish').slice(-2)
+      bearishOBs.forEach((ob, idx) => {
+        const alpha = idx === bearishOBs.length - 1 ? '0.6' : '0.2'
+        drawLine(ob.bottom, `rgba(246, 70, 93, ${alpha})`, 'OB Bottom', 3, 1) // lineStyle 3 = Dotted
+        drawLine(ob.ce, `rgba(246, 70, 93, ${alpha})`, 'OB CE', 1, 1)          // lineStyle 1 = Solid
+        drawLine(ob.top, `rgba(246, 70, 93, ${alpha})`, 'OB Top', 3, 1)
+      })
+
+      // 找尋距離現價最近的未填補 Bullish OB (支撐區)
+      const bullishOBs = allOBs.filter(ob => ob.type === 'bullish').slice(-2)
+      bullishOBs.forEach((ob, idx) => {
+        const alpha = idx === bullishOBs.length - 1 ? '0.6' : '0.2'
+        drawLine(ob.top, `rgba(14, 203, 129, ${alpha})`, 'OB Top', 3, 1)
+        drawLine(ob.ce, `rgba(14, 203, 129, ${alpha})`, 'OB CE', 1, 1)
+        drawLine(ob.bottom, `rgba(14, 203, 129, ${alpha})`, 'OB Bottom', 3, 1)
+      })
+
+    } catch (err) {
+      console.error('[AdvancedChart] Failed to draw quant lines:', err)
+    }
+  }, [quantState?.nearestLevels, quantState?.smc?.orderBlocks, isQuantEnabled])
+
   // Update indicators
   const updateIndicators = (klineData: Kline[]) => {
     if (!chartRef.current) return
@@ -927,6 +990,9 @@ export function AdvancedChart({
         flexDirection: 'column',
       }}
     >
+      {/* QuantEngine Resonance Panel Overlay */}
+      <QuantResonancePanel symbol={symbol} className="absolute top-[60px] right-4 z-[100] w-72" />
+
       {/* Compact Professional Header */}
       <div
         className="flex items-center justify-between px-4 py-2"

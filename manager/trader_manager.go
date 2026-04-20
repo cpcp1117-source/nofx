@@ -624,6 +624,12 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 		return fmt.Errorf("trader %s has no strategy configured", traderCfg.Name)
 	}
 
+	// Fallback to legacy config if strategy type is not explicitly set in the new config structure
+	strategyType := strategyConfig.StrategyType
+	if strategyType == "" {
+		strategyType = traderCfg.StrategyType
+	}
+
 	// Build AutoTraderConfig (ai500APIURL/oiTopAPIURL obtained from strategy config, used in StrategyEngine)
 	traderConfig := trader.AutoTraderConfig{
 		ID:                    traderCfg.ID,
@@ -644,7 +650,7 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 		InitialBalance:        traderCfg.InitialBalance,
 		IsCrossMargin:         traderCfg.IsCrossMargin,
 		ShowInCompetition:     traderCfg.ShowInCompetition,
-		StrategyType:          traderCfg.StrategyType,
+		StrategyType:          strategyType, // Prioritize strategy config over legacy trader config
 		StrategyConfig:        strategyConfig,
 		QuantParams:           traderCfg.QuantParams,
 	}
